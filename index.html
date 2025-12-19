@@ -82,7 +82,7 @@
           <div class="mt-6">
             <div class="flex justify-between text-sm font-bold text-stone-500 mb-2">
               <span id="progress-text">0% Complete</span>
-              <span id="steps-text">0/8</span>
+              <span id="steps-text">0/14</span>
             </div>
             <div class="h-3 bg-stone-100 rounded-full overflow-hidden">
               <div id="progress-bar" class="h-full bg-blue-500 transition-all duration-500 ease-out rounded-full" style="width: 0%"></div>
@@ -98,24 +98,35 @@
   <script>
     const STORAGE_KEY = 'linkedin_tracker_data';
     
-    // Hardcoded steps for new videos
+    // UPDATED STEPS based on 'LinkedIn-video-processing-table.md'
     const DEFAULT_WORKFLOW_GROUPS = [
       {
-        title: "Production",
+        title: "Descript",
         steps: [
-          "Script / Outline",
-          "Record Video",
-          "Edit Video",
+          "Upload & Transcribe",
+          "Add Captions",
+          "Make Edits",
+          "Download Edited File"
+        ]
+      },
+      {
+        title: "Canva",
+        steps: [
+          "Copy Template",
+          "Add & Edit Video",
+          "Download Final Video",
           "Create Thumbnail"
         ]
       },
       {
-        title: "Distribution",
+        title: "LinkedIn Post",
         steps: [
-          "Write Post Copy",
-          "Upload to LinkedIn",
-          "Reply to Comments (1h)",
-          "Check Analytics (24h)"
+          "Copy Transcript to txt file",
+          "Generate Captions",
+          "Upload Video to LinkedIn",
+          "Upload Thumbnail",
+          "Draft Post Description",
+          "Schedule Post"
         ]
       }
     ];
@@ -144,7 +155,7 @@
     }
 
     function openVideo(id) {
-      if(!id) return alert("Error: Video has no ID"); // Safety check
+      if(!id) return alert("Error: Video has no ID");
       
       currentVideoId = id;
       const video = videos.find(v => v.id === id);
@@ -178,7 +189,6 @@
       if (video) {
         video.steps[stepName] = !video.steps[stepName];
         
-        // Check completion based on current rendered steps
         const allSteps = getApplicableSteps(video);
         video.completed = allSteps.every(s => video.steps[s]);
         
@@ -196,9 +206,6 @@
       }
     }
 
-    // Helper to get steps list. 
-    // If the video has steps NOT in the default list, we should probably include them or at least not crash.
-    // For simplicity, we stick to the Default Groups for rendering structure.
     function getApplicableSteps(video) {
        return DEFAULT_WORKFLOW_GROUPS.flatMap(g => g.steps);
     }
@@ -306,18 +313,12 @@
         reader.onload = r => {
           try { 
             const rawData = JSON.parse(r.target.result);
-            // SMART FIX: Ensure data is an array
+            // Smart Fix: Ensure array & add IDs if missing
             let cleanData = Array.isArray(rawData) ? rawData : [rawData];
-            
-            // SMART FIX: Sanitize old data
             cleanData = cleanData.map((v, idx) => {
-              // 1. Give it an ID if missing
               if (!v.id) v.id = 'imported_' + Date.now() + '_' + idx;
-              // 2. Ensure steps object exists
               if (!v.steps) v.steps = {};
-              // 3. Ensure title exists
               if (!v.title) v.title = "Untitled Import";
-              // 4. Ensure created date
               if (!v.createdAt) v.createdAt = new Date().toISOString();
               return v;
             });
@@ -325,7 +326,7 @@
             videos = cleanData; 
             saveData(); 
             renderDashboard(); 
-            alert(`Successfully imported ${videos.length} videos (Auto-fixed missing IDs).`); 
+            alert(`Successfully imported ${videos.length} videos.`); 
           } catch(e) { 
             alert('Error reading file: ' + e); 
           }
