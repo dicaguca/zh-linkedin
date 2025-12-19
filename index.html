@@ -22,10 +22,10 @@
         <h1 class="text-2xl font-extrabold text-stone-800 tracking-tight">LinkedIn Tracker</h1>
       </div>
       <div class="flex gap-2">
-        <button onclick="exportData()" class="p-2 hover:bg-stone-200 rounded-lg text-stone-500 transition-all">
+        <button onclick="exportData()" class="p-2 hover:bg-stone-200 rounded-lg text-stone-500 transition-all" title="Export Data">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
         </button>
-        <button onclick="importData()" class="p-2 hover:bg-stone-200 rounded-lg text-stone-500 transition-all">
+        <button onclick="importData()" class="p-2 hover:bg-stone-200 rounded-lg text-stone-500 transition-all" title="Import Data">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
         </button>
       </div>
@@ -98,9 +98,8 @@
   <script>
     const STORAGE_KEY = 'linkedin_tracker_data';
     
-    // Steps adapted for the new layout (Grouped into one 'General' group or split if you prefer)
-    // I'm using a single group here based on your previous file, but you can split them like the YouTube one.
-    const WORKFLOW_GROUPS = [
+    // Hardcoded steps for new videos
+    const DEFAULT_WORKFLOW_GROUPS = [
       {
         title: "Production",
         steps: [
@@ -145,6 +144,8 @@
     }
 
     function openVideo(id) {
+      if(!id) return alert("Error: Video has no ID"); // Safety check
+      
       currentVideoId = id;
       const video = videos.find(v => v.id === id);
       if(!video) return;
@@ -152,7 +153,7 @@
       document.getElementById('view-dashboard').classList.add('hidden');
       document.getElementById('view-workspace').classList.remove('hidden');
       
-      document.getElementById('active-title').value = video.title;
+      document.getElementById('active-title').value = video.title || "";
       renderSteps(video);
       updateProgress(video);
       window.scrollTo(0, 0);
@@ -176,8 +177,11 @@
       const video = videos.find(v => v.id === currentVideoId);
       if (video) {
         video.steps[stepName] = !video.steps[stepName];
-        const allSteps = WORKFLOW_GROUPS.flatMap(g => g.steps);
+        
+        // Check completion based on current rendered steps
+        const allSteps = getApplicableSteps(video);
         video.completed = allSteps.every(s => video.steps[s]);
+        
         saveData();
         renderSteps(video);
         updateProgress(video);
@@ -192,6 +196,13 @@
       }
     }
 
+    // Helper to get steps list. 
+    // If the video has steps NOT in the default list, we should probably include them or at least not crash.
+    // For simplicity, we stick to the Default Groups for rendering structure.
+    function getApplicableSteps(video) {
+       return DEFAULT_WORKFLOW_GROUPS.flatMap(g => g.steps);
+    }
+
     function renderDashboard() {
       const list = document.getElementById('video-list');
       list.innerHTML = '';
@@ -200,9 +211,9 @@
         list.innerHTML = `<div class="text-center py-12 bg-white rounded-2xl border border-stone-100 border-dashed text-stone-400 font-medium">No videos yet.</div>`;
       } else {
         videos.forEach(video => {
-          const allSteps = WORKFLOW_GROUPS.flatMap(g => g.steps);
+          const allSteps = getApplicableSteps(video);
           const doneCount = allSteps.filter(s => video.steps[s]).length;
-          const pct = Math.round((doneCount / allSteps.length) * 100);
+          const pct = allSteps.length > 0 ? Math.round((doneCount / allSteps.length) * 100) : 0;
 
           const el = document.createElement('div');
           el.className = `bg-white p-4 rounded-xl shadow-sm border border-stone-100 hover:shadow-md transition-all cursor-pointer flex items-center justify-between group`;
@@ -233,14 +244,16 @@
     function renderSteps(video) {
       const container = document.getElementById('steps-container');
       container.innerHTML = '';
-      WORKFLOW_GROUPS.forEach(group => {
+      
+      DEFAULT_WORKFLOW_GROUPS.forEach(group => {
         const groupDiv = document.createElement('div');
         groupDiv.className = 'mb-8 last:mb-0';
         groupDiv.innerHTML = `<h4 class="text-sm font-extrabold text-stone-400 uppercase tracking-widest mb-4 ml-1">${group.title}</h4>`;
         const stepsList = document.createElement('div');
         stepsList.className = 'space-y-3';
+        
         group.steps.forEach(step => {
-          const isDone = video.steps[step];
+          const isDone = video.steps ? video.steps[step] : false;
           const btn = document.createElement('div');
           btn.className = `flex items-center p-4 rounded-xl cursor-pointer border transition-all duration-200 group select-none ${isDone ? "bg-emerald-50 border-emerald-200" : "bg-white border-stone-200 hover:border-stone-300 hover:shadow-sm"}`;
           btn.onclick = () => toggleStep(step);
@@ -267,9 +280,10 @@
     }
 
     function updateProgress(video) {
-      const allSteps = WORKFLOW_GROUPS.flatMap(g => g.steps);
+      const allSteps = getApplicableSteps(video);
       const doneCount = allSteps.filter(s => video.steps[s]).length;
-      const pct = Math.round((doneCount / allSteps.length) * 100);
+      const pct = allSteps.length > 0 ? Math.round((doneCount / allSteps.length) * 100) : 0;
+      
       document.getElementById('progress-bar').style.width = `${pct}%`;
       document.getElementById('progress-bar').className = `h-full transition-all duration-500 ease-out rounded-full ${pct === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`;
       document.getElementById('progress-text').innerText = `${pct}% Complete`;
@@ -290,7 +304,31 @@
         const reader = new FileReader();
         reader.readAsText(file, 'UTF-8');
         reader.onload = r => {
-          try { videos = JSON.parse(r.target.result); saveData(); renderDashboard(); alert('Import successful!'); } catch(e) { alert('Error'); }
+          try { 
+            const rawData = JSON.parse(r.target.result);
+            // SMART FIX: Ensure data is an array
+            let cleanData = Array.isArray(rawData) ? rawData : [rawData];
+            
+            // SMART FIX: Sanitize old data
+            cleanData = cleanData.map((v, idx) => {
+              // 1. Give it an ID if missing
+              if (!v.id) v.id = 'imported_' + Date.now() + '_' + idx;
+              // 2. Ensure steps object exists
+              if (!v.steps) v.steps = {};
+              // 3. Ensure title exists
+              if (!v.title) v.title = "Untitled Import";
+              // 4. Ensure created date
+              if (!v.createdAt) v.createdAt = new Date().toISOString();
+              return v;
+            });
+
+            videos = cleanData; 
+            saveData(); 
+            renderDashboard(); 
+            alert(`Successfully imported ${videos.length} videos (Auto-fixed missing IDs).`); 
+          } catch(e) { 
+            alert('Error reading file: ' + e); 
+          }
         }
       }
       input.click();
